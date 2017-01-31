@@ -19,37 +19,37 @@
  */
 package com.synaptix.sonar.plugins.gitlab;
 
-import org.sonar.api.batch.bootstrap.ProjectBuilder;
-import org.sonar.api.config.Settings;
+import org.sonar.api.ce.posttask.PostProjectAnalysisTask;
+import org.sonar.api.ce.posttask.QualityGate;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 
-/**
- * Trigger load of pull request metadata at the very beginning of SQ analysis. Also
- * set "in progress" status on the pull request.
- */
-public class CommitProjectBuilder extends ProjectBuilder {
-    private static final Logger LOGGER = Loggers.get(CommitProjectBuilder.class);
+public class GitlabPostProjectAnalysisTask implements PostProjectAnalysisTask {
+
+    private static final Logger LOGGER = Loggers.get(CommitIssuePostJob.class);
 
     private final GitLabPluginConfiguration gitLabPluginConfiguration;
-    private final Settings settings;
     private final CommitFacade commitFacade;
 
-    public CommitProjectBuilder(GitLabPluginConfiguration gitLabPluginConfiguration, CommitFacade commitFacade, Settings settings) {
+    public GitlabPostProjectAnalysisTask(GitLabPluginConfiguration gitLabPluginConfiguration, CommitFacade commitFacade) {
         this.gitLabPluginConfiguration = gitLabPluginConfiguration;
-        this.settings = settings;
         this.commitFacade = commitFacade;
     }
 
     @Override
-    public void build(Context context) {
-        LOGGER.info("CommitProjectBuilder#build() " + gitLabPluginConfiguration.isEnabled());
-        if (!gitLabPluginConfiguration.isEnabled()) {
+    public void finished(ProjectAnalysis analysis) {
+        QualityGate qualityGate = analysis.getQualityGate();
+        if (!gitLabPluginConfiguration.isEnabled() || qualityGate == null || qualityGate.getStatus() != QualityGate.Status.ERROR) {
+            LOGGER.debug("PostProjectAnalysisTask finished");
             return;
         }
 
-        commitFacade.init(context.projectReactor().getRoot().getBaseDir());
-
-        commitFacade.createOrUpdateSonarQubeStatus("running", "SonarQube analysis in progress");
+        String qualityGateStatus = "Quality gate failed\n ";
+        for (QualityGate.Condition condition : qualityGate.getConditions()) {
+            if (condition.getStatus() == QualityGate.EvaluationStatus.ERROR) {
+                qualityGateStatus += condition.getMetricKey() + " value of " +condition.getValue() + " being error threshold "+condition.getErrorThreshold() + "\n";
+            }
+        }
+        commitFacade.addGlobalComment(qualityGateStatus);
     }
 }

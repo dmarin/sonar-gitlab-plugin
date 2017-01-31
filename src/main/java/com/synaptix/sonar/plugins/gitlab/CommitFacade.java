@@ -28,6 +28,8 @@ import org.sonar.api.batch.InstantiationStrategy;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.InputPath;
 import org.sonar.api.scan.filesystem.PathResolver;
+import org.sonar.api.utils.log.Logger;
+import org.sonar.api.utils.log.Loggers;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -43,6 +45,7 @@ import java.util.regex.Pattern;
 @InstantiationStrategy(InstantiationStrategy.PER_BATCH)
 @BatchSide
 public class CommitFacade {
+    private static final Logger LOGGER = Loggers.get(CommitFacade.class);
 
     static final String COMMIT_CONTEXT = "sonarqube";
 
@@ -60,11 +63,11 @@ public class CommitFacade {
         if (findGitBaseDir(projectBaseDir) == null) {
             throw new IllegalStateException("Unable to find Git root directory. Is " + projectBaseDir + " part of a Git repository?");
         }
-        gitLabAPI = GitLabAPI.connect(config.url(), config.userToken());
+        gitLabAPI = GitLabAPI.connect(config.url(), config.userToken()).setIgnoreCertificateErrors(true);
         try {
             gitLabProject = getGitLabProject();
 
-            patchPositionMappingByFile = mapPatchPositionsToLines(gitLabAPI.getGitLabAPICommits().getCommitDiffs(gitLabProject.getId(), config.commitSHA()));
+            patchPositionMappingByFile = mapPatchPositionsToLines(gitLabAPI.getGitLabAPICommits().getCommitDiffs(gitLabProject.getId(), config.commitSHA(), null).getResults());
         } catch (IOException e) {
             throw new IllegalStateException("Unable to perform GitLab WS operation", e);
         }
@@ -85,24 +88,12 @@ public class CommitFacade {
         if (config.projectId() == null) {
             throw new IllegalStateException("Unable found project for null project name");
         }
-        List<GitLabProject> projects = gitLabAPI.getGitLabAPIProjects().getProjects(null, null, null, null, null);
-        if (projects == null) {
+        GitLabProject project = gitLabAPI.getGitLabAPIProjects().getProject(config.projectId());
+        if (project == null) {
             throw new IllegalStateException("Unable found project for " + config.projectId());
         }
-        List<GitLabProject> res = new ArrayList<>();
-        for(GitLabProject project : projects) {
-            if (config.projectId().equals(project.getId().toString()) || config.projectId().equals(project.getPathWithNamespace()) || config.projectId().equals(project.getHttpUrl())
-                    || config.projectId().equals(project.getSshUrl()) || config.projectId().equals(project.getWebUrl()) || config.projectId().equals(project.getNameWithNamespace())) {
-                res.add(project);
-            }
-        }
-        if (res.isEmpty()) {
-            throw new IllegalStateException("Unable found project for " + config.projectId());
-        }
-        if (res.size() > 1) {
-            throw new IllegalStateException("Multiple found projects for " + config.projectId());
-        }
-        return res.get(0);
+
+        return project;
     }
 
     private static boolean isEqualsNameWithNamespace(String current, String f) {
@@ -151,6 +142,7 @@ public class CommitFacade {
 
     public void createOrUpdateSonarQubeStatus(String status, String statusDescription) {
         try {
+            LOGGER.info("Creating or updating sonar qube status");
             gitLabAPI.getGitLabAPICommits().postCommitStatus(gitLabProject.getId(), config.commitSHA(), status, config.refName(), COMMIT_CONTEXT, null, statusDescription);
         } catch (IOException e) {
             throw new IllegalStateException("Unable to update commit status", e);

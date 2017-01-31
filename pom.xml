@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.synaptix</groupId>
     <artifactId>sonar-gitlab-plugin</artifactId>
-    <version>1.8.1-SNAPSHOT</version>
+    <version>1.8.2-SNAPSHOT</version>
     <name>SonarQube :: GitLab Plugin</name>
     <description>GitLab Plugin for Reporting</description>
     <packaging>sonar-plugin</packaging>
@@ -21,13 +21,13 @@
     </organization>
     <url>https://gitlab.talanlabs.com/gabriel-allaigre/sonar-gitlab-plugin</url>
     <properties>
-        <java-gitlab-api.version>1.4.0</java-gitlab-api.version>
+        <java-gitlab-api.version>1.7.0</java-gitlab-api.version>
         <freemarker.version>2.3.23</freemarker.version>
 
         <license.mailto>gabriel.allaigre@talanlabs.com</license.mailto>
         <license.owner>Talanlabs</license.owner>
 
-        <sonar.version>5.4-RC1</sonar.version>
+        <sonar.version>5.6</sonar.version>
         <sonar.pluginName>GitLab</sonar.pluginName>
         <sonar.pluginClass>com.synaptix.sonar.plugins.gitlab.GitLabPlugin</sonar.pluginClass>
     </properties>
@@ -128,6 +128,24 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sonarsource.sonar-packaging-maven-plugin</groupId>
+                <artifactId>sonar-packaging-maven-plugin</artifactId>
+                <version>1.17</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <!-- the entry-point class that extends org.sonar.api.SonarPlugin -->
+                    <pluginClass>com.synaptix.sonar.plugins.gitlab.GitLabPlugin</pluginClass>
+
+                    <!-- advanced properties can be set here. See paragraph "Advanced Build Properties". -->
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
     <distributionManagement>
         <repository>
             <id>talanlabs-releases-repository</id>

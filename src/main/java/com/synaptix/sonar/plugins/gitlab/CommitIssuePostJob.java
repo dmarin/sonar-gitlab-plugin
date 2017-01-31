@@ -22,9 +22,12 @@ package com.synaptix.sonar.plugins.gitlab;
 import org.sonar.api.batch.CheckProject;
 import org.sonar.api.batch.SensorContext;
 import org.sonar.api.batch.fs.InputFile;
+import org.sonar.api.ce.posttask.QualityGate;
 import org.sonar.api.issue.Issue;
 import org.sonar.api.issue.ProjectIssues;
 import org.sonar.api.resources.Project;
+import org.sonar.api.utils.log.Logger;
+import org.sonar.api.utils.log.Loggers;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,11 +37,14 @@ import java.util.Map;
  */
 public class CommitIssuePostJob implements org.sonar.api.batch.PostJob, CheckProject {
 
+    private static final Logger LOGGER = Loggers.get(CommitIssuePostJob.class);
+
     private final GitLabPluginConfiguration gitLabPluginConfiguration;
     private final CommitFacade commitFacade;
     private final ProjectIssues projectIssues;
     private final InputFileCache inputFileCache;
     private final MarkDownUtils markDownUtils;
+    private QualityGate qualityGate;
 
     public CommitIssuePostJob(GitLabPluginConfiguration gitLabPluginConfiguration, CommitFacade commitFacade, ProjectIssues projectIssues, InputFileCache inputFileCache, MarkDownUtils markDownUtils) {
         this.gitLabPluginConfiguration = gitLabPluginConfiguration;
@@ -55,6 +61,7 @@ public class CommitIssuePostJob implements org.sonar.api.batch.PostJob, CheckPro
 
     @Override
     public void executeOn(Project project, SensorContext context) {
+        LOGGER.info("Execute On");
         GlobalReport report = new GlobalReport(gitLabPluginConfiguration, markDownUtils);
 
         Map<InputFile, Map<Integer, StringBuilder>> commentsToBeAddedByLine = processIssues(report);
